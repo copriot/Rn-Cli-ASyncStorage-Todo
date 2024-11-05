@@ -1,5 +1,7 @@
 import {
+  Alert,
   FlatList,
+  Modal,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -10,16 +12,16 @@ import {
 import uuid from 'react-native-uuid';
 import React, {useEffect, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const App = () => {
-  //input içindeki değer
   const [todo, setTodo] = useState('');
-  //eklenilen todolar
   const [todos, setTodos] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [currentTodo, setCurrentTodo] = useState(null);
+  const [updatedText, setUpdatedText] = useState('');
 
   const saveTodos = async saveTodo => {
     try {
-      //ASyncStorage ekleme yaparken setItem la ekleme yap
-      //2deger ister key string olarak digeri calue(json.stringfy())
       await AsyncStorage.setItem('todos', JSON.stringify(saveTodo));
     } catch (error) {
       console.log(error);
@@ -40,22 +42,38 @@ const App = () => {
   const deleteTodo = id => {
     const filtredTodos = todos.filter(item => item.id !== id);
     setTodos(filtredTodos);
+    saveTodos(filtredTodos);
+  };
+
+  const showUpdateModal = (id, text) => {
+    setCurrentTodo(id);
+    setUpdatedText(text);
+    setModalVisible(true);
+  };
+
+  const handleUpdate = () => {
+    const updatedTodos = todos.map(item =>
+      item.id === currentTodo ? {...item, text: updatedText} : item,
+    );
+    setTodos(updatedTodos);
+    saveTodos(updatedTodos);
+    setModalVisible(false);
+    setCurrentTodo(null);
+    setUpdatedText('');
   };
 
   useEffect(() => {
     loadTodos();
   }, []);
 
-  //add butonuna basıldığında çalısacak fonksiyon
   const addTodo = () => {
     if (todo === '') return;
-    //yeni todo olustur todos stateine ekle
     const updatedTodos = [...todos, {id: uuid.v4(), text: todo.trim()}];
     setTodos(updatedTodos);
     saveTodos(updatedTodos);
     setTodo('');
   };
-  console.log(todos);
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={{flex: 1}}>
@@ -86,9 +104,9 @@ const App = () => {
                     <Text style={styles.buttonText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
-
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity
+                    onPress={() => showUpdateModal(item.id, item.text)}
                     style={[styles.button, styles.updateButton]}>
                     <Text style={styles.buttonText}>Update</Text>
                   </TouchableOpacity>
@@ -98,6 +116,46 @@ const App = () => {
           )}
           keyExtractor={item => item?.id?.toString()}
         />
+
+        {/* Modal  */}
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setModalVisible(false)}>
+          <View style={styles.modalBackground}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Update Todo</Text>
+              <TextInput
+                value={updatedText}
+                onChangeText={text => setUpdatedText(text)}
+                style={{
+                  color: 'black',
+                  backgroundColor: 'white',
+                  borderWidth: 1,
+                  borderColor: 'gray',
+                  padding: 10,
+                  borderRadius: 5,
+                }}
+                placeholder="Update your todo"
+                placeholderTextColor="gray"
+              />
+
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity
+                  onPress={handleUpdate}
+                  style={[styles.button, styles.saveButton]}>
+                  <Text style={styles.buttonText}>Save</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setModalVisible(false)}
+                  style={[styles.button, styles.cancelButton]}>
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </View>
   );
@@ -108,10 +166,7 @@ export default App;
 const styles = StyleSheet.create({
   container: {flex: 1, padding: 20},
   headerText: {fontSize: 24, marginBottom: 20, fontWeight: 'bold'},
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  inputContainer: {flexDirection: 'row', alignItems: 'center'},
   input: {
     borderWidth: 1,
     padding: 10,
@@ -126,11 +181,7 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   buttonText: {color: 'white', fontSize: 16},
-  addButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-  },
+  addButton: {alignItems: 'center', justifyContent: 'center', padding: 8},
   buttonContainer: {},
   deleteButton: {backgroundColor: 'red'},
   updateButton: {backgroundColor: 'purple'},
@@ -140,4 +191,25 @@ const styles = StyleSheet.create({
     marginTop: 15,
     alignItems: 'center',
   },
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    width: '80%',
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  modalTitle: {fontSize: 18, marginBottom: 10, color: 'black'},
+  modalButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
+  saveButton: {backgroundColor: 'green'},
+  cancelButton: {backgroundColor: 'red'},
 });
